@@ -1,0 +1,81 @@
+#include "projeto5.h"
+#include <stdio.h>
+#include <math.h>
+
+#define DENTRO_CIRCULO 1
+#define FORA_CIRCULO 0
+#define SEGUNDO 1
+#define PRIMEIRO 0
+#define LIMIAR 200
+
+unsigned char calculaMediaCursor(Imagem1C* img, int i, int j,int tam)
+{
+  unsigned char media = img->dados[i][j]/(tam*2+1);
+  int k;
+  double angulo;
+
+  if (j-tam >= 0 && j+tam < img->largura)
+  {
+    //printf("\nmeu pai\n");
+    for (k = 0; k < tam; k++)
+      media += img->dados[i][j+k+1]/(tam*2+1) + img->dados[i][j-k-1]/(tam*2+1);
+  }
+  else
+      return 0;
+  //printf("\n%x\n", media/(tam*2+1));
+  return media;
+}
+
+double detectaSensorBar (Imagem1C* img, Coordenada* l, Coordenada* r)
+{
+  int i, j, diam1 = 0, diam2 = 0, countDiam1, countDiam2, estado, circulo_atual = PRIMEIRO;
+
+  // Percorre imagem
+  for (i = 0; i < img->altura; i++)
+  {
+    countDiam1 = 0;
+    countDiam2 = 0;
+    circulo_atual = PRIMEIRO;
+    estado = FORA_CIRCULO;
+    for (j = 0; j < img->largura; j++)
+    {
+      if(calculaMediaCursor(img, i, j, 2) >= LIMIAR && estado == FORA_CIRCULO)
+      {
+        if (circulo_atual == PRIMEIRO)
+          countDiam1++;
+        else
+          countDiam2++;
+        if (countDiam1 > diam1 && circulo_atual == PRIMEIRO)
+        {
+          diam1 = countDiam1;
+          l->x = diam1/2 + j;
+          l->y = diam1/2 + i;
+        }
+        else if (countDiam2 > diam2 && circulo_atual == SEGUNDO)
+        {
+          diam2 = countDiam2;
+          r->x = diam2/2 + j;
+          r->y = diam2/2 + i;
+        }
+        estado = DENTRO_CIRCULO;
+      }
+      else if (countDiam1)
+      {
+        circulo_atual = SEGUNDO;
+        estado = FORA_CIRCULO;
+      }   
+    }
+  }
+  int aux;
+  if (l->x > r->x)
+  {
+    aux = l->x;
+    l->x = r->x;
+    r->x = aux;
+    aux = l->y;
+    l->y = r->y;
+    r->y = aux;
+  }
+  return atan((l->y-r->y)/(l->x-r->x));
+}
+
