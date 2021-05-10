@@ -2,23 +2,30 @@
 #include <stdio.h>
 #include <math.h>
 
-#define LIMIAR 211
+#define LIMIAR 176
 
 int ehBranco(Imagem1C* img, int i, int j);
 void cancelaCirculo(Imagem1C* img, int i, int j, int raio);
 double detectaSensorBar (Imagem1C* img, Coordenada* l, Coordenada* r);
-int calculaDiametro();
+int calculaLimiar(int larg, int alt);
+int calculaDiametro(Imagem1C* img, int i, int j);
+
 // vamo faze o seguinte, vamo fazer que nessa função ele ja diz se estora o branco
 // adicionar o escape do fracasso
 // Cursor em forma de cruz 
-//   x
-//  xxx
-//   x
+//      x
+//      x
+//  x x x x x
+//      x
+//      x
 int ehBranco(Imagem1C* img, int i, int j)
 {
   unsigned char media;
 
-  media =img->dados[i][j]/5 + img->dados[i-1][j]/5 + img->dados[i+1][j]/5 + img->dados[i][j-1]/5 + img->dados[i][j+1]/5;
+  media = img->dados[i][j]/9 + img->dados[i-1][j]/9 + img->dados[i+1][j]/9 + img->dados[i][j-1]/9 + img->dados[i][j+1]/9 + img->dados[i-2][j]/9 + img->dados[i+2][j]/9 + img->dados[i][j-2]/9 + img->dados[i][j+2]/9;
+
+  /*media = img->dados[i][j]/5 + img->dados[i-1][j]/5 + img->dados[i+1][j]/5 + img->dados[i][j-1]/5 + img->dados[i][j+1]/5;*/
+  
   if (media >= LIMIAR)
     return 1;
   return 0;
@@ -30,9 +37,9 @@ int ehBranco(Imagem1C* img, int i, int j)
 void cancelaCirculo(Imagem1C* img, int i, int j, int diam)
 {
   int k, w;
-  for (k = i; i+diam < img->altura && k < i+diam; k++)
-    for (w = j-diam/2; 0 <= j-diam/2 && j+diam/2 < img->largura && w < j+diam; j++)
-      img->dados[i][j] = 0;
+  for (k = i; k < i+diam; k++)
+    for (w = j-diam/2; w < j+diam/2; w++)
+      img->dados[k][w] = 0;
 }
 
 //
@@ -55,11 +62,11 @@ int calculaDiametro(Imagem1C* img, int i, int j)
 double detectaSensorBar (Imagem1C* img, Coordenada* l, Coordenada* r)
 {
   int i, j, diam;
+  double angulo;
   l->x = 0;
   // começa no 1 devido ao tamanho do cursor
-  for (i = 1; i < img->altura - 1; i++)
-    for (j = 1; j < img->largura - 1; j++)
-    {
+  for (i = 2; i < img->altura - 2; i++)
+    for (j = 2; j < img->largura - 2; j++)    {
       if (ehBranco(img, i, j))
       {
         diam = calculaDiametro(img, i, j);
@@ -87,6 +94,7 @@ double detectaSensorBar (Imagem1C* img, Coordenada* l, Coordenada* r)
     l->y = r->y;
     r->y = aux;
   }
-
-  return 0;
+  angulo = atan2(r->y-l->y, r->x-l->x);
+  //angulo *= (180.0 / M_PI);
+  return angulo;
 }
