@@ -68,6 +68,9 @@ int main ()
       /* Invoca o testador. */
       tempo_inicio = clock ();
       angulo_medido = detectaSensorBar (img, &l_medido, &r_medido);
+      char testeBin[15];
+      sprintf (testeBin, "testeBin%d.bmp", i);
+      salvaImagem1C(img, testeBin);
       tempo_total += clock () - tempo_inicio;
 
       /* Compara os resultados com o que foi gerado. */

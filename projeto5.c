@@ -2,89 +2,123 @@
 #include <stdio.h>
 #include <math.h>
 
-#define LIMIAR 176
+#define PI 3.1415926535897932384626433832795
+#define PAREDE 0
+#define BRANCO 255
 
-int ehBranco(Imagem1C* img, int i, int j);
-void cancelaCirculo(Imagem1C* img, int i, int j, int raio);
-double detectaSensorBar (Imagem1C* img, Coordenada* l, Coordenada* r);
-int calculaLimiar(int larg, int alt);
-int calculaDiametro(Imagem1C* img, int i, int j);
-
-// vamo faze o seguinte, vamo fazer que nessa função ele ja diz se estora o branco
-// adicionar o escape do fracasso
-// Cursor em forma de cruz 
-//      x
-//      x
-//  x x x x x
-//      x
-//      x
-int ehBranco(Imagem1C* img, int i, int j)
+int mediaGeral(Imagem1C* img)
 {
-  unsigned char media;
-
-  media = img->dados[i][j]/9 + img->dados[i-1][j]/9 + img->dados[i+1][j]/9 + img->dados[i][j-1]/9 + img->dados[i][j+1]/9 + img->dados[i-2][j]/9 + img->dados[i+2][j]/9 + img->dados[i][j-2]/9 + img->dados[i][j+2]/9;
-
-  /*media = img->dados[i][j]/5 + img->dados[i-1][j]/5 + img->dados[i+1][j]/5 + img->dados[i][j-1]/5 + img->dados[i][j+1]/5;*/
+  int i , j;
+  long soma = 0;
   
-  if (media >= LIMIAR)
-    return 1;
-  return 0;
+  //percorre a imagem
+  for (i = 0; i < img->altura; i++)
+    for (j = 0; j < img->largura; j++)
+      soma += img->dados[i][j];
+  
+  return soma/(i*j);
+}
+
+// Binariza Imagem
+void binariza(Imagem1C* img)
+{
+  int i, j, limiar;
+  
+  limiar = mediaGeral(img) + 95;
+  
+  //percorre a imagem
+  for (i = 0; i < img->altura; i++)
+    for (j = 0; j < img->largura; j++)
+      if(img->dados[i][j] < limiar)
+        img->dados[i][j] = 0;
+      else
+        img->dados[i][j] = 255;
+}
+
+void removeRuido(Imagem1C* img)
+{
+  int i, j;
+
+  //percorre a imagem - simplificavel
+  for (i = 1; i < img->altura - 1; i++)
+    for (j = 1; j < img->largura - 1; j++)
+      if(!img->dados[i+1][j] && !img->dados[i-1][j] && !img->dados[i][j+1] && !img->dados[i][j-1])
+        img->dados[i][j] = 0;
+}
+
+int mapeiaCirculo(Imagem1C* img)
+{
+  int i, j, count = 1, quantidade_caminhos = 0, raio;
+
+  //percorre a imagem - simplificavel
+  for (i = 1; i < img->altura - 1; i++)
+    for (j = 1; j < img->largura - 1; j++)
+      if (img->dados[i][j] == BRANCO )
+        quantidade_caminhos++;
+
+  raio = sqrt((double)quantidade_caminhos/(2.0*PI));
+  printf("raio: %d\n",raio);
+  return raio;
 }
 
 // Função usada para borrar a área de um círculo achado
 //
 //
-void cancelaCirculo(Imagem1C* img, int i, int j, int diam)
+void cancelaCirculo(Imagem1C* img, int i, int j, int raio)
 {
   int k, w;
-  for (k = i; k < i+diam; k++)
-    for (w = j-diam/2; w < j+diam/2; w++)
+  for (k = i; k < i+raio*2; k++)
+    for (w = j-raio; w < j+raio; w++)
       img->dados[k][w] = 0;
 }
 
-//
-//
-//
-int calculaDiametro(Imagem1C* img, int i, int j)
+void encontraCentro(Imagem1C* img, int raio, Coordenada* l, Coordenada* r)
 {
-  int diam = 0;
-  while(ehBranco(img, i, j))
-  {
-    diam++;
-    i++;
-  }
-  return diam;
-}
-
-//
-//
-//
-double detectaSensorBar (Imagem1C* img, Coordenada* l, Coordenada* r)
-{
-  int i, j, diam;
-  double angulo;
-  l->x = 0;
-  // começa no 1 devido ao tamanho do cursor
-  for (i = 2; i < img->altura - 2; i++)
-    for (j = 2; j < img->largura - 2; j++)    {
-      if (ehBranco(img, i, j))
+  int i, j, k, count = 0, maior=0, maior2;
+  //percorre a imagem
+  for (i = raio+1; i < img->altura-1-raio; i++)
+    for (j = raio+1; j < img->largura-1-raio; j++)
+    {
+      if (img->dados[i][j] == BRANCO)
       {
-        diam = calculaDiametro(img, i, j);
-        cancelaCirculo(img, i, j, diam);
-        if (!l->x)
+        for (k = 1; k <= raio; k++)
         {
-          l->y = i + diam/2;
+          if (img->dados[i+k][j])
+            count++;
+          if (img->dados[i-k][j])
+            count++;
+          if (img->dados[i][j+k])
+            count++;
+          if (img->dados[i][j-k])
+            count++;
+        }
+        if (count >= raio*4-2)
+        {
+          cancelaCirculo(img, i, j, raio*2);
+          r->y = l->y;
+          r->x = l->x;
+          maior2 = maior;
+          maior = count;
+          l->y = i;
           l->x = j;
         }
-        else
-        {
-          r->y = i + diam/2;
-          r->x = j;
-        }
-      }
+      }   
     }
+}
 
-  int aux;
+double detectaSensorBar (Imagem1C* img, Coordenada* l, Coordenada* r)
+{
+  int limiar, raio, aux;
+  double angulo;
+  int i, j;
+
+  //printf("media cores: %d\n", mediaGeral(img));
+  binariza(img);
+  removeRuido(img);
+
+  raio = mapeiaCirculo(img);
+  encontraCentro(img, raio, l, r);
+
   if (l->x > r->x)
   {
     aux = l->x;
@@ -94,7 +128,8 @@ double detectaSensorBar (Imagem1C* img, Coordenada* l, Coordenada* r)
     l->y = r->y;
     r->y = aux;
   }
+  
   angulo = atan2(r->y-l->y, r->x-l->x);
   //angulo *= (180.0 / M_PI);
-  return angulo;
+  return angulo;  
 }
